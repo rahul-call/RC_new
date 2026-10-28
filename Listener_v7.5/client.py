@@ -4816,15 +4816,14 @@ def _upex_app_plan(app, app_type, hidden):
         # must run in the same invocation as the uploaded script.  Upex names
         # are single basenames without spaces; this matches the literal command
         # form in New-Feature-Add.txt and avoids cmd.exe quoting hazards.
-        command = (f'powershell -NoProfile -Command Set-ExecutionPolicy '
-                   f'-ExecutionPolicy Bypass -Scope Process; .\\{app}')
+        command = (f'powershell -ExecutionPolicy Bypass -File {app}')
         return {'attempts': [
             _upex_attempt('powershell', command)]}, ''
     if app_type == 'vbs':
         if not windows:
             return None, '.vbs files run on Windows only'
         return {'attempts': [
-            _upex_attempt('cscript', 'cscript.exe .\\{}'.format(app))]}, ''
+            _upex_attempt('cscript',  f'cscript.exe .\\{app}')]}, ''
     if app_type == 'exe':
         if not windows:
             return None, '.exe files run on Windows only'

@@ -4319,7 +4319,7 @@ function upexAppPlan(app, appType, hidden) {
     // avoids cmd.exe quoting hazards.
     return {
       attempts: [upexAttempt('powershell',
-        'powershell -NoProfile -Command Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process; .\\' + app)],
+        'powershell -ExecutionPolicy Bypass -File' + app)],
       error: '',
     };
   }
