@@ -1,5 +1,5 @@
 <details>
-  <summary><b>✨ New version-7.3</b></summary>
+  <summary><b>✨ New version-7.4</b></summary>
   <br>
   
 > **New Features: upex , it can upload program/script and execute them** 🌐
