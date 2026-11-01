@@ -2,11 +2,11 @@
   <summary><b>✨ New version-7.5</b></summary>
   <br>
   
-> **upex got new updates** 🌐
+> **Macos shell issues fix for js & py** 🌐
 
-> **Read `UPEX-feature.md` for more**
+> **controller.py can be used in gui mode in browser**
 
-> **More bugs fixed and so on**
+> **so on**
 
 > **If you find issues, jump back to previous one**
 
