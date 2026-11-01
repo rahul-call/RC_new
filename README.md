@@ -1,5 +1,5 @@
 <details>
-  <summary><b>✨ New version-7.5</b></summary>
+  <summary><b>✨ New version-7.9</b></summary>
   <br>
   
 > **Macos shell issues fix for js & py** 🌐
